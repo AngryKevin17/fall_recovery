@@ -278,7 +278,7 @@ class T1StandupEnv(gymnasium.Env):
         # Penalizing high gyro
         if self.options["terminate_gyro"]:
             gyro = self.sim.get_gyro()
-            if abs(gyro[1]) > 5:
+            if abs(gyro[1]) > 10:
                 done = True
 
         # Shock termination

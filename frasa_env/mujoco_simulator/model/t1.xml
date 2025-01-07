@@ -7,6 +7,10 @@
             <joint damping="2.0" armature="0.025" frictionloss="0.10" />
         </default>
         <default class="motor2">
+            <position kp="200" forcerange="-60 60" />
+            <joint damping="2.0" armature="0.025" frictionloss="0.10" />
+        </default>
+        <default class="motor3">
             <position kp="100" forcerange="-20 20" />
             <joint damping="1.0" armature="0.025" frictionloss="0.10" />
         </default>
@@ -181,18 +185,18 @@
         <position class="motor1" name="Right_Elbow_Pitch" joint="Right_Elbow_Pitch" ctrlrange="-2.27 2.27" />
         <position class="motor1" name="Right_Elbow_Yaw" joint="Right_Elbow_Yaw" ctrlrange="0 2.44" />
         <position class="motor1" name="Waist" joint="Waist" ctrlrange="-1.57 1.57" />
-        <position class="motor1" name="Left_Hip_Pitch" joint="Left_Hip_Pitch" ctrlrange="-1.8 1.57" />
+        <position class="motor2" name="Left_Hip_Pitch" joint="Left_Hip_Pitch" ctrlrange="-1.8 1.57" />
         <position class="motor1" name="Left_Hip_Roll" joint="Left_Hip_Roll" ctrlrange="-0.52 1.57" />
         <position class="motor1" name="Left_Hip_Yaw" joint="Left_Hip_Yaw" ctrlrange="-1 1" />
-        <position class="motor1" name="Left_Knee_Pitch" joint="Left_Knee_Pitch" ctrlrange="0 2.34" />
-        <position class="motor2" name="Left_Ankle_Pitch" joint="Left_Ankle_Pitch" ctrlrange="-0.87 0.35" />
-        <position class="motor2" name="Left_Ankle_Roll" joint="Left_Ankle_Roll" ctrlrange="-0.44 0.44" />
-        <position class="motor1" name="Right_Hip_Pitch" joint="Right_Hip_Pitch" ctrlrange="-1.8 1.57" />
+        <position class="motor2" name="Left_Knee_Pitch" joint="Left_Knee_Pitch" ctrlrange="0 2.34" />
+        <position class="motor3" name="Left_Ankle_Pitch" joint="Left_Ankle_Pitch" ctrlrange="-0.87 0.35" />
+        <position class="motor3" name="Left_Ankle_Roll" joint="Left_Ankle_Roll" ctrlrange="-0.44 0.44" />
+        <position class="motor2" name="Right_Hip_Pitch" joint="Right_Hip_Pitch" ctrlrange="-1.8 1.57" />
         <position class="motor1" name="Right_Hip_Roll" joint="Right_Hip_Roll" ctrlrange="-1.57 0.52" />
         <position class="motor1" name="Right_Hip_Yaw" joint="Right_Hip_Yaw" ctrlrange="-1 1" />
-        <position class="motor1" name="Right_Knee_Pitch" joint="Right_Knee_Pitch" ctrlrange="0 2.34" />
-        <position class="motor2" name="Right_Ankle_Pitch" joint="Right_Ankle_Pitch" ctrlrange="-0.87 0.35" />
-        <position class="motor2" name="Right_Ankle_Roll" joint="Right_Ankle_Roll" ctrlrange="-0.44 0.44" />
+        <position class="motor2" name="Right_Knee_Pitch" joint="Right_Knee_Pitch" ctrlrange="0 2.34" />
+        <position class="motor3" name="Right_Ankle_Pitch" joint="Right_Ankle_Pitch" ctrlrange="-0.87 0.35" />
+        <position class="motor3" name="Right_Ankle_Roll" joint="Right_Ankle_Roll" ctrlrange="-0.44 0.44" />
     </actuator>
     <sensor>
         <framequat name="orientation" objtype="site" noise="0.001" objname="imu" />
