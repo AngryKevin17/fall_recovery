@@ -6,3 +6,4 @@ sigmaban_model
 data/
 *.egg-info
 **/logs
+MUJOCO_LOG.TXT

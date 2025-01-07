@@ -7,7 +7,7 @@ import frasa_env
 
 gym.register_envs(frasa_env)
 
-env = gym.make("frasa-standup-v0")
+env = gym.make("t1-standup-v0")
 configs: list = []
 filename: str = env.unwrapped.get_initial_config_filename()
 
