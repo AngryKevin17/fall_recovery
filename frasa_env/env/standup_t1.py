@@ -28,7 +28,7 @@ class T1StandupEnv(gymnasium.Env):
             "render_realtime": True,
             # Target robot state (q_motors, tilt) [rad^6]
             # [shoulder_pitch, elbow_yaw, hip_pitch, knee_pitch, ankle_pitch, IMU_pitch]
-            "desired_state": np.deg2rad([11.5, -28.6, -11.5, 23, -14.3, -0.]),
+            "desired_state": np.deg2rad([11.5, -28.6, -11.5, 23, -14.3, -0.3]),
             # Probability of seeding the robot in finale position
             "reset_final_p": 0.1,
             # Termination conditions
@@ -272,13 +272,13 @@ class T1StandupEnv(gymnasium.Env):
         # Terminating in case of upside down robot
         if self.options["terminate_upside_down"]:
             tilt = self.get_tilt()
-            if np.rad2deg(np.abs(tilt)) > 135:
+            if np.rad2deg(np.abs(tilt)) > 150:
                 done = True
 
         # Penalizing high gyro
         if self.options["terminate_gyro"]:
             gyro = self.sim.get_gyro()
-            if abs(gyro[1]) > 10:
+            if abs(gyro[1]) > 20:
                 done = True
 
         # Shock termination
@@ -323,6 +323,9 @@ class T1StandupEnv(gymnasium.Env):
 
         # No self collisions reward
         reward += np.exp(-self.sim.self_collisions()) * 1e-1
+
+        # torso height reward
+        reward += np.exp(-(self.sim.data.sensor("position").data[2] - 0.68)**2) * 1e-1
 
         # Terminating the episode after the trucate_duration
         terminated = self.sim.t > self.options["truncate_duration"]
@@ -374,7 +377,7 @@ class T1StandupEnv(gymnasium.Env):
         for dof in self.sim.dof_names():
             self.apply_angular_offset(dof, self.np_random.uniform(-err_rad, err_rad))
 
-    def randomize_fall(self, target: bool = False):
+    def randomize_fall(self, target: bool = True):
         # Decide if we will use the target
         my_target = np.copy(self.options["desired_state"])
         if target is False:
@@ -417,7 +420,7 @@ class T1StandupEnv(gymnasium.Env):
         self.sim.reset()
         options = options or {}
         target = options.get("target", False)
-        use_cache = options.get("use_cache", False)
+        use_cache = options.get("use_cache", True)
 
         if use_cache and self.initial_config is None:
             warnings.warn(
