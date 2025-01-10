@@ -88,6 +88,19 @@ class Simulator:
         addr = self.model.jnt_dofadr[self.dofs_to_index[name]]
         return self.data.qvel[addr]
 
+    def get_applied_torque(self, name: str) -> float:
+        """
+        Gets the applied torque of a given joint.
+
+        Args:
+            name (str): joint name
+
+        Returns:
+            float: applied torque
+        """
+        addr = self.model.jnt_dofadr[self.dofs_to_index[name]]
+        return self.data.qfrc_applied[addr]
+
     def set_q(self, name: str, value: float) -> None:
         """
         Sets a value of a given joint.

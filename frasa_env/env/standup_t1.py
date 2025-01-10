@@ -46,8 +46,8 @@ class T1StandupEnv(gymnasium.Env):
             "random_v": [13.8, 16.8],  # [volts]
             "nominal_v": 15,  # [volts]
             # Control type (position, velocity or error)
-            "control": "velocity",
-            "interpolate": True,
+            "control": "position",
+            "interpolate": False,
             # Delay for velocity [s]
             "qdot_delay": 0.030,
             "tilt_delay": 0.050,
@@ -59,10 +59,22 @@ class T1StandupEnv(gymnasium.Env):
 
         self.render_mode = render_mode
         self.sim = Simulator()
+        
+        # Default joint positions
+        self.default_joint_positions = np.array([
+                                        0.2, -1.35, 0., -0.5,
+                                        0.2,  1.35, 0.,  0.5,
+                                        0., # waist
+                                        -0.2, 0., 0., 0.4, -0.25, 0.,
+                                        -0.2, 0., 0., 0.4, -0.25, 0.
+                                        ])
+        self.stiffness = np.array([100, 100, 100, 100, 100, 100, 100, 100, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 100, 100], dtype=np.float32)
+        self.damping = np.array([1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 1, 1], dtype=np.float32)
 
         # Degrees of freedom involved
         self.dofs = ["Shoulder_Pitch", "Elbow_Yaw", "Hip_Pitch", "Knee_Pitch", "Ankle_Pitch"]
         self.ranges = [self.sim.model.actuator(f"Left_{dof}").ctrlrange for dof in self.dofs]
+        self.last_ctrl = np.zeros(len(self.dofs))
 
         # Pre-fetching indexes and sites for faster evaluation
         self.trunk_site = self.sim.data.site("imu")
@@ -112,7 +124,7 @@ class T1StandupEnv(gymnasium.Env):
                     # dtilt (16)
                     -10,
                     # Previous action
-                    *(list(self.action_space.low) * self.options["previous_actions"]),
+                    *(-self.options["previous_actions"] * np.ones(len(self.dofs))),
                 ],
                 dtype=np.float32,
             ),
@@ -129,7 +141,7 @@ class T1StandupEnv(gymnasium.Env):
                     # dtilt (16)
                     10,
                     # Previous action
-                    *(list(self.action_space.high) * self.options["previous_actions"]),
+                    *(self.options["previous_actions"] * np.ones(len(self.dofs))),
                 ],
                 dtype=np.float32,
             ),
@@ -169,17 +181,28 @@ class T1StandupEnv(gymnasium.Env):
     def get_initial_config_filename(self) -> str:
         return os.path.join(os.path.dirname(os.path.realpath(__file__)), "standup_initial_configurations.pkl")
 
-    def apply_control(self, q: np.ndarray, reset: bool = False) -> None:
-        self.sim.data.ctrl[self.left_actuators_indexes] = q
-        q_right = q.copy()
+    def apply_control(self, q_target: np.ndarray, reset: bool = False) -> None:
+        q = self.sim.data.qpos[-21:]
+        q_dot = self.sim.data.qvel[-21:]
+        q_right = q_target.copy()
         q_right[1] = -q_right[1]
-        self.sim.data.ctrl[self.right_actuators_indexes] = q_right
-        self.sim.data.ctrl[self.shoulder_roll_actuators_indexes] = [-1.35, 1.35]
+        target_joint_pos = self.default_joint_positions.copy()
+        target_joint_pos[self.left_actuators_indexes] += q_target
+        target_joint_pos[self.right_actuators_indexes] += q_right
+        # print("target_joint_pos: ", target_joint_pos[self.left_actuators_indexes])
+
+        target_ctrl = self.stiffness * (target_joint_pos - q) - self.damping * q_dot
+        target_ctrl[self.left_actuators_indexes] = np.clip(target_ctrl[self.left_actuators_indexes], self.range_low, self.range_high)
+        target_ctrl[self.right_actuators_indexes] = np.clip(target_ctrl[self.right_actuators_indexes], self.range_low, self.range_high)
+        # print("target_ctrl: ", target_ctrl[self.left_actuators_indexes])
 
         if reset:
             for k, dof in enumerate(self.dofs):
-                self.sim.set_control(f"Left_{dof}", q[k], True)
-                self.sim.set_control(f"Right_{dof}", q_right[k], True)
+                target_joint_pos = self.default_joint_positions.copy()
+                target_ctrl = self.stiffness * (target_joint_pos - q) - self.damping * q_dot
+                target_ctrl = np.clip(target_ctrl, self.range_low, self.range_high)
+
+        self.sim.data.ctrl = target_ctrl
 
     def get_tilt(self) -> float:
         R = self.trunk_site.xmat
@@ -191,7 +214,7 @@ class T1StandupEnv(gymnasium.Env):
         q_dot = (np.array(self.q_history[-1]) - np.array(self.q_history[0])) / (self.q_history_size * self.sim.dt)
 
         # Current control
-        ctrl = [self.sim.get_control(f"Left_{dof}") for dof in self.dofs]
+        ctrl = [self.sim.get_applied_torque(f"Left_{dof}") for dof in self.dofs]
         ctrl = np.array(ctrl)
 
         # Tilt, dtilt
@@ -213,10 +236,11 @@ class T1StandupEnv(gymnasium.Env):
         )
 
     def step(self, action):
-        action = np.array(action)
+        action = np.clip(np.array(action), -1, 1)
+        # print("action: ", action)
 
         # Current control
-        start_ctrl = [self.sim.get_control(f"Left_{dof}") for dof in self.dofs]
+        start_ctrl = [self.sim.get_q(f"Left_{dof}") for dof in self.dofs]
 
         # Applying the action
         if self.options["control"] == "position":
@@ -231,14 +255,10 @@ class T1StandupEnv(gymnasium.Env):
             target_ctrl_unclipped = np.array(start_q) + action
 
         # Limiting the control
-        target_ctrl = np.clip(
-            target_ctrl_unclipped,
-            start_ctrl - self.delta_max * self.time_ratio,
-            start_ctrl + self.delta_max * self.time_ratio,
-        )
+        target_ctrl = action
 
-        # Limiting the control to the range
-        target_ctrl = np.clip(target_ctrl, self.range_low, self.range_high)
+        # # Limiting the control to the range
+        # target_ctrl = np.clip(target_ctrl, self.range_low, self.range_high)
 
         # Not terminating episode
         done = False
@@ -291,6 +311,7 @@ class T1StandupEnv(gymnasium.Env):
 
         # Extracting observation
         obs = self.get_observation()
+        # print("obs: ", obs)
 
         state_current = [*self.q_history[-1], self.tilt_history[-1]]
 
@@ -302,9 +323,8 @@ class T1StandupEnv(gymnasium.Env):
 
         # Penalizing velocities
         if self.options["control"] == "position":
-            # Penalizing control velocity
-            ctrl_velocity = (target_ctrl - start_ctrl) / self.options["dt"]
-            reward += np.exp(-np.linalg.norm(ctrl_velocity)) * 1e-1
+            # Penalizing action
+            reward -= np.linalg.norm(action) * 1e-2
 
             # Penalizing action variation
             reward += np.exp(-np.linalg.norm(action_variation)) * 5e-2
@@ -320,14 +340,16 @@ class T1StandupEnv(gymnasium.Env):
 
             # Penalizing action variation
             reward += np.exp(-np.linalg.norm(action_variation)) * 5e-2
+        self.last_ctrl = target_ctrl
 
         # No self collisions reward
         reward += np.exp(-self.sim.self_collisions()) * 1e-1
 
-        # torso height reward
-        reward += np.exp(-(self.sim.data.sensor("position").data[2] - 0.68)**2) * 1e-1
+        # Torso height reward
+        reward -= np.linalg.norm(self.sim.data.sensor("position").data[2] - 0.68) * 1e-2
+        # print("height: ", self.sim.data.sensor("position").data[2])
 
-        # Terminating the episode after the trucate_duration
+        # Terminating the episode after the truncate_duration
         terminated = self.sim.t > self.options["truncate_duration"]
 
         return obs, reward, done, terminated, {}
@@ -394,7 +416,6 @@ class T1StandupEnv(gymnasium.Env):
             initial_q[3] += offset * 2
             initial_q[4] -= offset
 
-        initial_q = np.clip(initial_q, self.range_low, self.range_high)
         self.apply_control(initial_q)
 
         # Set the robot initial pose
@@ -403,7 +424,7 @@ class T1StandupEnv(gymnasium.Env):
         if target:
             initial_tilt = my_target[-1]
         T_world_trunk = tf.rotation_matrix(initial_tilt, [0, 1, 0])
-        T_world_trunk[:3, 3] = [0, 0, 0.8]
+        T_world_trunk[:3, 3] = [0, 0, 0.75]
 
         self.sim.set_T_world_site("imu", T_world_trunk)
 
