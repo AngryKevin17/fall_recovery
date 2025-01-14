@@ -17,7 +17,7 @@ class T1StandupEnv(gymnasium.Env):
     def __init__(self, render_mode="none", options: Optional[dict] = None, evaluation: bool = False):
         self.options = {
             # Duration of the stabilization pre-simulation (waiting for the gravity to stabilize the robot) [s]
-            "stabilization_time": 2.0,
+            "stabilization_time": 0.5,
             # Duration of the episode before truncation [s]
             "truncate_duration": 5.0,
             # Period for the agent to apply control [s]
@@ -90,20 +90,8 @@ class T1StandupEnv(gymnasium.Env):
 
         if self.options["control"] == "position":
             self.action_space = spaces.Box(
-                np.array(self.range_low),
-                np.array(self.range_high),
-                dtype=np.float32,
-            )
-        elif self.options["control"] == "velocity":
-            self.action_space = spaces.Box(
-                np.array([-self.options["vmax"]] * len(self.dofs), dtype=np.float32),
-                np.array([self.options["vmax"]] * len(self.dofs), dtype=np.float32),
-                dtype=np.float32,
-            )
-        elif self.options["control"] == "error":
-            self.action_space = spaces.Box(
-                np.array([-np.pi / 4] * len(self.dofs), dtype=np.float32),
-                np.array([np.pi / 4] * len(self.dofs), dtype=np.float32),
+                -5 * np.ones(len(self.dofs)),
+                5 * np.ones(len(self.dofs)),
                 dtype=np.float32,
             )
         else:
@@ -118,7 +106,7 @@ class T1StandupEnv(gymnasium.Env):
                     # dq (5-9)
                     *(-10 * np.ones(len(self.dofs))),
                     # ctrl (10-14)
-                    *self.range_low,
+                    # *(-np.ones(len(self.dofs))),
                     # tilt (15)
                     -np.pi,
                     # dtilt (16)
@@ -135,7 +123,7 @@ class T1StandupEnv(gymnasium.Env):
                     # dq (5-9)
                     *(10 * np.ones(len(self.dofs))),
                     # ctrl (10-14)
-                    *self.range_high,
+                    # *(np.ones(len(self.dofs))),
                     # tilt (15)
                     np.pi,
                     # dtilt (16)
@@ -181,7 +169,7 @@ class T1StandupEnv(gymnasium.Env):
     def get_initial_config_filename(self) -> str:
         return os.path.join(os.path.dirname(os.path.realpath(__file__)), "standup_initial_configurations.pkl")
 
-    def apply_control(self, q_target: np.ndarray, reset: bool = False) -> None:
+    def apply_control(self, q_target: np.ndarray) -> None:
         q = self.sim.data.qpos[-21:]
         q_dot = self.sim.data.qvel[-21:]
         q_right = q_target.copy()
@@ -196,12 +184,6 @@ class T1StandupEnv(gymnasium.Env):
         target_ctrl[self.right_actuators_indexes] = np.clip(target_ctrl[self.right_actuators_indexes], self.range_low, self.range_high)
         # print("target_ctrl: ", target_ctrl[self.left_actuators_indexes])
 
-        if reset:
-            for k, dof in enumerate(self.dofs):
-                target_joint_pos = self.default_joint_positions.copy()
-                target_ctrl = self.stiffness * (target_joint_pos - q) - self.damping * q_dot
-                target_ctrl = np.clip(target_ctrl, self.range_low, self.range_high)
-
         self.sim.data.ctrl = target_ctrl
 
     def get_tilt(self) -> float:
@@ -214,8 +196,9 @@ class T1StandupEnv(gymnasium.Env):
         q_dot = (np.array(self.q_history[-1]) - np.array(self.q_history[0])) / (self.q_history_size * self.sim.dt)
 
         # Current control
-        ctrl = [self.sim.get_applied_torque(f"Left_{dof}") for dof in self.dofs]
-        ctrl = np.array(ctrl)
+        # ctrl = [self.sim.get_control(f"Left_{dof}") for dof in self.dofs]
+        # ctrl = np.array(ctrl)
+        # ctrl = self.previous_actions[-1]
 
         # Tilt, dtilt
         tilt = self.tilt_history[0]
@@ -227,7 +210,7 @@ class T1StandupEnv(gymnasium.Env):
             [
                 *q,
                 *q_dot,
-                *ctrl,
+                # *ctrl,
                 tilt,
                 dtilt,
                 *(np.array(self.previous_actions).flatten()),
@@ -236,7 +219,7 @@ class T1StandupEnv(gymnasium.Env):
         )
 
     def step(self, action):
-        action = np.clip(np.array(action), -1, 1)
+        action = np.array(action)
         # print("action: ", action)
 
         # Current control
@@ -246,19 +229,9 @@ class T1StandupEnv(gymnasium.Env):
         if self.options["control"] == "position":
             # Action is a q
             target_ctrl_unclipped = action
-        elif self.options["control"] == "velocity":
-            # Action is a q variation
-            target_ctrl_unclipped = start_ctrl + action * self.options["dt"]
-        elif self.options["control"] == "error":
-            # Action is an error w.r.t the read configuration
-            start_q = [self.sim.get_q(f"Left_{dof}") for dof in self.dofs]
-            target_ctrl_unclipped = np.array(start_q) + action
 
         # Limiting the control
         target_ctrl = action
-
-        # # Limiting the control to the range
-        # target_ctrl = np.clip(target_ctrl, self.range_low, self.range_high)
 
         # Not terminating episode
         done = False
@@ -267,11 +240,7 @@ class T1StandupEnv(gymnasium.Env):
         # Step the simulation
         timesteps = round(self.time_ratio * self.options["dt"] / self.sim.dt)
         for k in range(timesteps):
-            if self.options["interpolate"]:
-                alpha = (k + 1) / timesteps
-                self.apply_control(start_ctrl + alpha * (target_ctrl - start_ctrl))
-            else:
-                self.apply_control(target_ctrl)
+            self.apply_control(target_ctrl)
             self.sim.step()
 
             if self.options["terminate_shock"]:
@@ -324,19 +293,7 @@ class T1StandupEnv(gymnasium.Env):
         # Penalizing velocities
         if self.options["control"] == "position":
             # Penalizing action
-            reward -= np.linalg.norm(action) * 1e-2
-
-            # Penalizing action variation
-            reward += np.exp(-np.linalg.norm(action_variation)) * 5e-2
-        elif self.options["control"] == "velocity":
-            # Penalizing action
-            reward += np.exp(-np.linalg.norm(action)) * 1e-1
-
-            # Penalizing action variation
-            reward += np.exp(-np.linalg.norm(action_variation)) * 5e-2
-        elif self.options["control"] == "error":
-            # Penalizing action
-            reward += np.exp(-np.linalg.norm(action)) * 1e-1
+            reward += np.exp(-np.linalg.norm(action)) * 1e-2
 
             # Penalizing action variation
             reward += np.exp(-np.linalg.norm(action_variation)) * 5e-2
@@ -346,7 +303,7 @@ class T1StandupEnv(gymnasium.Env):
         reward += np.exp(-self.sim.self_collisions()) * 1e-1
 
         # Torso height reward
-        reward -= np.linalg.norm(self.sim.data.sensor("position").data[2] - 0.68) * 1e-2
+        reward += np.exp(-np.linalg.norm(self.sim.data.sensor("position").data[2] - 0.68)) * 1e-0
         # print("height: ", self.sim.data.sensor("position").data[2])
 
         # Terminating the episode after the truncate_duration
@@ -377,20 +334,6 @@ class T1StandupEnv(gymnasium.Env):
             size=3,
         )
 
-        # Randomizing the voltage
-        volts = self.np_random.uniform(*self.options["random_v"])
-        volts_ratio = volts / self.options["nominal_v"]
-        self.sim.model.actuator_gainprm = self.gainprm_original * volts_ratio
-        self.sim.model.actuator_biasprm = self.biasprm_original * volts_ratio
-        self.sim.model.actuator_forcerange = self.forcerange_original * volts_ratio
-
-        # Randomize the damping
-        damping_ratio = self.np_random.uniform(*self.options["random_damping"])
-        self.sim.model.dof_damping = self.damping_original * damping_ratio
-
-        frictionloss_ratio = self.np_random.uniform(*self.options["random_frictionloss"])
-        self.sim.model.dof_frictionloss = self.frictionloss_original * frictionloss_ratio
-
         # Restoring body quats
         self.sim.model.body_quat = self.body_quat_original.copy()
 
@@ -399,24 +342,25 @@ class T1StandupEnv(gymnasium.Env):
         for dof in self.sim.dof_names():
             self.apply_angular_offset(dof, self.np_random.uniform(-err_rad, err_rad))
 
-    def randomize_fall(self, target: bool = True):
+    def randomize_fall(self, target: bool = False):
         # Decide if we will use the target
         my_target = np.copy(self.options["desired_state"])
         if target is False:
             target = self.np_random.random() < self.options["reset_final_p"]
 
-        # Selecting a random configuration
-        initial_q = self.np_random.uniform(low=-np.pi, high=np.pi, size=(len(self.dofs),))
-
-        # If target, we will use the q_target
-        if target:
-            initial_q = my_target[: len(self.dofs)]
-            offset = self.np_random.uniform(-0.1, 0.1)
-            initial_q[2] -= offset
-            initial_q[3] += offset * 2
-            initial_q[4] -= offset
-
-        self.apply_control(initial_q)
+        # self.apply_control(initial_q)
+        target_joint_pos = self.default_joint_positions.copy()
+        offset = self.np_random.uniform(-0.1, 0.1)
+        initial_q = my_target[: len(self.dofs)]
+        initial_q[2] -= offset
+        initial_q[3] += offset * 2
+        initial_q[4] -= offset
+        q_right = initial_q.copy()
+        q_right[1] = -q_right[1]
+        target_joint_pos[self.left_actuators_indexes] = initial_q
+        target_joint_pos[self.right_actuators_indexes] = q_right
+        self.sim.data.qpos[-21:] = target_joint_pos
+        self.sim.data.qvel *= 0
 
         # Set the robot initial pose
         self.sim.step()
@@ -441,7 +385,7 @@ class T1StandupEnv(gymnasium.Env):
         self.sim.reset()
         options = options or {}
         target = options.get("target", False)
-        use_cache = options.get("use_cache", True)
+        use_cache = options.get("use_cache", False)
 
         if use_cache and self.initial_config is None:
             warnings.warn(
