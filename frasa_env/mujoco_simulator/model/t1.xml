@@ -4,15 +4,15 @@
     <default>
         <default class="motor1">
             <motor ctrlrange="-30 30" />
-            <joint damping="2.0" armature="0.025" frictionloss="0.10" />
+            <joint damping="20.0" armature="0.025" frictionloss="0.10" />
         </default>
         <default class="motor2">
             <motor ctrlrange="-60 60" />
-            <joint damping="2.0" armature="0.025" frictionloss="0.10" />
+            <joint damping="20.0" armature="0.025" frictionloss="0.10" />
         </default>
         <default class="motor3">
             <motor ctrlrange="-20 20" />
-            <joint damping="1.0" armature="0.025" frictionloss="0.10" />
+            <joint damping="10.0" armature="0.025" frictionloss="0.10" />
         </default>
     </default>
 

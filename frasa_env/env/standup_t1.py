@@ -19,7 +19,7 @@ class T1StandupEnv(gymnasium.Env):
             # Duration of the stabilization pre-simulation (waiting for the gravity to stabilize the robot) [s]
             "stabilization_time": 0.5,
             # Duration of the episode before truncation [s]
-            "truncate_duration": 5.0,
+            "truncate_duration": 10.0,
             # Period for the agent to apply control [s]
             "dt": 0.05,
             # Maximum command angular velocity [rad/s]
@@ -90,8 +90,8 @@ class T1StandupEnv(gymnasium.Env):
 
         if self.options["control"] == "position":
             self.action_space = spaces.Box(
-                -5 * np.ones(len(self.dofs)),
-                5 * np.ones(len(self.dofs)),
+                -2 * np.ones(len(self.dofs)),
+                2 * np.ones(len(self.dofs)),
                 dtype=np.float32,
             )
         else:
@@ -267,7 +267,7 @@ class T1StandupEnv(gymnasium.Env):
         # Penalizing high gyro
         if self.options["terminate_gyro"]:
             gyro = self.sim.get_gyro()
-            if abs(gyro[1]) > 20:
+            if abs(gyro[1]) > 10:
                 done = True
 
         # Shock termination
