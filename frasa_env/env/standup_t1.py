@@ -348,7 +348,6 @@ class T1StandupEnv(gymnasium.Env):
         if target is False:
             target = self.np_random.random() < self.options["reset_final_p"]
 
-        # self.apply_control(initial_q)
         target_joint_pos = self.default_joint_positions.copy()
         offset = self.np_random.uniform(-0.1, 0.1)
         initial_q = my_target[: len(self.dofs)]

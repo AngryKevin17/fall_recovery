@@ -7,3 +7,5 @@ data/
 *.egg-info
 **/logs
 MUJOCO_LOG.TXT
+wandb/
+runs/
