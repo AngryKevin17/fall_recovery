@@ -48,7 +48,7 @@
             <site name='imu' size='0.01' pos='0.0561239 1.22834e-05 0.126592' />
             <freejoint name="root" />
             <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.76 0.76 0.76 0.2" mesh="Trunk" />
-            <geom size="0.075 0.1 0.15" pos="0.06 0 0.12" type="box" rgba="0.76 0.76 0.76 0.2" />
+            <geom size="0.075 0.1 0.12" pos="0.06 0 0.12" type="box" rgba="0.76 0.76 0.76 0.2" />
             <geom pos="0.0625 0 0.243" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.4 0.4 0.4 0.3" mesh="H1" />
             <geom pos="0.0625 0 0.30485" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.4 0.4 0.4 0.3" mesh="H2" />
             <geom size="0.08" pos="0.0725 0 0.41485" rgba="0.4 0.4 0.4 0.3" />
@@ -71,7 +71,8 @@
                             <inertial pos="-0.000108 0.109573 0.000591" quat="0.707866 0.706347 -5.22939e-05 -0.000214913" mass="0.327214" diaginertia="0.008159 0.00813104 0.000214962" />
                             <joint class="motor1" name="Left_Elbow_Yaw" pos="0 0 0" axis="0 0 1" limited="true" range="-2.44 0" />
                             <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.4 0.4 0.4 0.3" mesh="left_hand_link" />
-                            <geom type="mesh" rgba="0.4 0.4 0.4 0.3" mesh="left_hand_link" />
+                            <!-- <geom type="mesh" rgba="0.4 0.4 0.4 0.3" mesh="left_hand_link" /> -->
+                            <geom size="0.03 0.17" pos="0 0.15 0" quat="0.7071 0.7071 0 0" type="cylinder" rgba="0.4 0.4 0.4 0.3" />
                         </body>
                     </body>
                 </body>
@@ -95,7 +96,8 @@
                             <inertial pos="-0.000108 -0.109573 0.000591" quat="0.706347 0.707866 0.000214913 5.22939e-05" mass="0.327214" diaginertia="0.008159 0.00813104 0.000214962" />
                             <joint class="motor1" name="Right_Elbow_Yaw" pos="0 0 0" axis="0 0 1" limited="true" range="0 2.44" />
                             <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.4 0.4 0.4 0.3" mesh="right_hand_link" />
-                            <geom type="mesh" rgba="0.4 0.4 0.4 0.3" mesh="right_hand_link" />
+                            <!-- <geom type="mesh" rgba="0.4 0.4 0.4 0.3" mesh="right_hand_link" /> -->
+                            <geom size="0.03 0.17" pos="0 -0.15 0" quat="0.7071 0.7071 0 0" type="cylinder" rgba="0.4 0.4 0.4 0.3" />
                         </body>
                     </body>
                 </body>
@@ -106,7 +108,7 @@
                 <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.4 0.4 0.4 0.3" mesh="Waist" />
                 <body name="Hip_Pitch_Left" pos="0 0.106 0">
                     <inertial pos="0.000534 -0.007296 -0.018083" quat="0.975141 0.2211 0.0145808 0.0017406" mass="1.021" diaginertia="0.00180547 0.00145926 0.00125327" />
-                    <joint class="motor2" name="Left_Hip_Pitch" pos="0 0 0" axis="0 1 0" limited="true" range="-1.8 1.57" />
+                    <joint class="motor2" name="Left_Hip_Pitch" pos="0 0 0" axis="0 1 0" limited="true" range="-1.8 2.5" />
                     <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.76 0.76 0.76 0.2" mesh="Hip_Pitch_Left" />
                     <body name="Hip_Roll_Left" pos="0 0 -0.02">
                         <inertial pos="0.001101 2.4e-05 -0.05375" quat="0.707081 -0.00599604 -0.00599604 0.707081" mass="0.385" diaginertia="0.001743 0.00151729 0.000514712" />
@@ -140,7 +142,7 @@
                 </body>
                 <body name="Hip_Pitch_Right" pos="0 -0.106 0">
                     <inertial pos="0.000534 0.007514 -0.018082" quat="0.973446 -0.228403 0.0147148 -0.00419349" mass="1.021" diaginertia="0.00180552 0.0014632 0.00124928" />
-                    <joint class="motor2" name="Right_Hip_Pitch" pos="0 0 0" axis="0 1 0" limited="true" range="-1.8 1.57" />
+                    <joint class="motor2" name="Right_Hip_Pitch" pos="0 0 0" axis="0 1 0" limited="true" range="-1.8 2.5" />
                     <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.76 0.76 0.76 0.2" mesh="Hip_Pitch_Right" />
                     <body name="Hip_Roll_Right" pos="0 0 -0.02">
                         <inertial pos="0.001099 2.4e-05 -0.053748" quat="0.707081 -0.00599604 -0.00599604 0.707081" mass="0.385" diaginertia="0.001743 0.00151729 0.000514712" />
